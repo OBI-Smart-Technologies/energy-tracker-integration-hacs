@@ -1,0 +1,9 @@
+{
+  "entity": {
+    "sensor": {
+      "connection_strength": {
+        "default": "mdi:wifi"
+      }
+    }
+  }
+}

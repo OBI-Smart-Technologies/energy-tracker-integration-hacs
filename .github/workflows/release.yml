@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Tag and publish the release
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Refuse to release from anything but main
+        run: |
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            echo "::error::Releases are cut from main only, not from ${{ github.ref }}."
+            exit 1
+          fi
+      - name: Refuse to release without a license
+        run: |
+          if [ ! -f LICENSE ]; then
+            echo "::error::No LICENSE file. Users may not legally use an unlicensed integration — add the license before releasing."
+            exit 1
+          fi
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Read version from manifest.json
+        id: version
+        run: |
+          version="$(python -c 'import json, pathlib; print(json.loads(pathlib.Path("custom_components/obi_energy_tracker/manifest.json").read_text())["version"])')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Releasing version $version"
+      - name: Refuse to release an already tagged version
+        run: |
+          if git rev-parse -q --verify "refs/tags/v${{ steps.version.outputs.version }}" >/dev/null; then
+            echo "::error::Tag v${{ steps.version.outputs.version }} already exists. Bump version in manifest.json first."
+            exit 1
+          fi
+      - name: Build the HACS archive
+        run: |
+          cp LICENSE NOTICE custom_components/obi_energy_tracker/
+          cd custom_components/obi_energy_tracker
+          zip -r ../../obi_energy_tracker.zip .
+      - name: Create tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "v$VERSION" obi_energy_tracker.zip \
+            --title "v$VERSION" \
+            --generate-notes \
+            --target "$GITHUB_SHA"

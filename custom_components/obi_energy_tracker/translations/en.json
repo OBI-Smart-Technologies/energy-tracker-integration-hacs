@@ -1,0 +1,106 @@
+{
+  "config": {
+    "step": {
+      "pick_implementation": {
+        "title": "OBI ENERGY TRACKER"
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate OBI ENERGY TRACKER",
+        "description": "Your session has expired. Please log in again via OBI to continue."
+      }
+    },
+    "abort": {
+      "already_configured": "This OBI account is already set up in Home Assistant",
+      "cannot_connect": "Could not reach the OBI ENERGY TRACKER service. Check the internet connection and try again.",
+      "authorize_url_timeout": "Timeout generating authorize URL",
+      "no_url_available": "No URL available. For information about this error, check the help section",
+      "user_rejected_authorize": "Account linking rejected",
+      "oauth_error": "Received invalid token data",
+      "missing_configuration": "The component is not configured. Please follow the documentation",
+      "reauth_successful": "Re-authentication was successful",
+      "wrong_account": "Please log in with the same OBI account this integration was set up with.",
+      "oauth_implementation_unavailable": "The sign-in method is no longer available. Remove the integration and set it up again.",
+      "missing_credentials": "The integration is not configured for sign-in. Please follow the documentation",
+      "oauth_timeout": "Timed out while resolving the sign-in code",
+      "oauth_unauthorized": "The sign-in was rejected by OBI",
+      "oauth_failed": "The sign-in could not be completed"
+    },
+    "create_entry": {
+      "default": "Successfully authenticated with OBI ENERGY TRACKER"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Log out of OBI ENERGY TRACKER",
+        "description": "Ends the OBI session and revokes the stored tokens. You will then be asked to log in again. Devices, entities and history are kept."
+      }
+    },
+    "abort": {
+      "logged_out": "Logged out. Use the notification to log in again and keep using the integration."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "is_online": {
+        "name": "Online Status"
+      }
+    },
+    "sensor": {
+      "consumption": {
+        "name": "Consumption"
+      },
+      "feed_in": {
+        "name": "Feed-in"
+      },
+      "battery_level": {
+        "name": "Battery Level"
+      },
+      "connection_strength": {
+        "name": "Bridge reception",
+        "state": {
+          "bad": "Bad",
+          "fair": "Okay",
+          "good": "Good",
+          "excellent": "Excellent"
+        }
+      },
+      "signal_strength": {
+        "name": "Signal Strength"
+      }
+    },
+    "switch": {
+      "outlet": {
+        "name": "Outlet"
+      }
+    },
+    "update": {
+      "firmware": {
+        "name": "Firmware"
+      }
+    }
+  },
+  "exceptions": {
+    "cannot_connect": {
+      "message": "Could not reach the OBI ENERGY TRACKER service: {error}"
+    },
+    "auth_failed": {
+      "message": "The OBI sign-in is no longer valid. Please log in again."
+    },
+    "update_failed": {
+      "message": "Failed to fetch data from the OBI ENERGY TRACKER service: {error}"
+    },
+    "outlet_offline": {
+      "message": "Outlet {name} did not respond, it might be offline."
+    },
+    "outlet_switch_failed": {
+      "message": "Failed to switch outlet {name}: {error}"
+    },
+    "firmware_update_unavailable": {
+      "message": "No firmware update is available for bridge {name}."
+    },
+    "firmware_update_failed": {
+      "message": "Failed to start the firmware update for bridge {name}: {error}"
+    }
+  }
+}

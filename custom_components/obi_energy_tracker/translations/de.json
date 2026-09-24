@@ -1,0 +1,106 @@
+{
+  "config": {
+    "step": {
+      "pick_implementation": {
+        "title": "OBI ENERGY TRACKER"
+      },
+      "reauth_confirm": {
+        "title": "OBI ENERGY TRACKER neu authentifizieren",
+        "description": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut über OBI an, um fortzufahren."
+      }
+    },
+    "abort": {
+      "already_configured": "Dieses OBI Konto ist in Home Assistant bereits eingerichtet",
+      "cannot_connect": "Der OBI ENERGY TRACKER Dienst ist nicht erreichbar. Bitte die Internetverbindung prüfen und erneut versuchen.",
+      "authorize_url_timeout": "Zeitüberschreitung beim Generieren der Autorisierungs-URL",
+      "no_url_available": "Keine URL verfügbar. Weitere Informationen finden Sie im Hilfebereich",
+      "user_rejected_authorize": "Kopplung abgelehnt",
+      "oauth_error": "Ungültige Token-Daten empfangen",
+      "missing_configuration": "Die Komponente ist nicht konfiguriert. Bitte folgen Sie der Dokumentation",
+      "reauth_successful": "Neuauthentifizierung erfolgreich",
+      "wrong_account": "Bitte melden Sie sich mit demselben OBI-Konto an, mit dem diese Integration eingerichtet wurde.",
+      "oauth_implementation_unavailable": "Die Anmeldemethode ist nicht mehr verfügbar. Bitte die Integration entfernen und neu einrichten.",
+      "missing_credentials": "Für die Integration ist keine Anmeldung konfiguriert. Bitte der Dokumentation folgen",
+      "oauth_timeout": "Zeitüberschreitung beim Einlösen des Anmeldecodes",
+      "oauth_unauthorized": "Die Anmeldung wurde von OBI abgelehnt",
+      "oauth_failed": "Die Anmeldung konnte nicht abgeschlossen werden"
+    },
+    "create_entry": {
+      "default": "Erfolgreich bei OBI ENERGY TRACKER authentifiziert"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Von OBI ENERGY TRACKER abmelden",
+        "description": "Beendet die Sitzung bei OBI und widerruft die gespeicherten Token. Anschließend werden Sie zur erneuten Anmeldung aufgefordert. Geräte, Entitäten und der Verlauf bleiben erhalten."
+      }
+    },
+    "abort": {
+      "logged_out": "Abgemeldet. Melden Sie sich über die Benachrichtigung erneut an, um die Integration weiter zu nutzen."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "is_online": {
+        "name": "Online-Status"
+      }
+    },
+    "sensor": {
+      "consumption": {
+        "name": "Verbrauch"
+      },
+      "feed_in": {
+        "name": "Einspeisung"
+      },
+      "battery_level": {
+        "name": "Akku-Level"
+      },
+      "connection_strength": {
+        "name": "Empfang zur Bridge",
+        "state": {
+          "bad": "Schlecht",
+          "fair": "Okay",
+          "good": "Gut",
+          "excellent": "Ausgezeichnet"
+        }
+      },
+      "signal_strength": {
+        "name": "Signalstärke"
+      }
+    },
+    "switch": {
+      "outlet": {
+        "name": "Zwischenstecker"
+      }
+    },
+    "update": {
+      "firmware": {
+        "name": "Firmware"
+      }
+    }
+  },
+  "exceptions": {
+    "cannot_connect": {
+      "message": "Der OBI ENERGY TRACKER Dienst ist nicht erreichbar: {error}"
+    },
+    "auth_failed": {
+      "message": "Die OBI Anmeldung ist nicht mehr gültig. Bitte melden Sie sich erneut an."
+    },
+    "update_failed": {
+      "message": "Daten vom OBI ENERGY TRACKER Dienst konnten nicht abgerufen werden: {error}"
+    },
+    "outlet_offline": {
+      "message": "Zwischenstecker {name} hat nicht reagiert, er ist möglicherweise offline."
+    },
+    "outlet_switch_failed": {
+      "message": "Zwischenstecker {name} konnte nicht geschaltet werden: {error}"
+    },
+    "firmware_update_unavailable": {
+      "message": "Für die Bridge {name} ist kein Firmware-Update verfügbar."
+    },
+    "firmware_update_failed": {
+      "message": "Das Firmware-Update für die Bridge {name} konnte nicht gestartet werden: {error}"
+    }
+  }
+}

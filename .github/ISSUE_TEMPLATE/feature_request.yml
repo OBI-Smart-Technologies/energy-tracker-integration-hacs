@@ -1,0 +1,20 @@
+name: Feature request
+description: Suggest a new entity, option or behaviour
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do in Home Assistant?
+      description: The automation or dashboard you are trying to build, not the implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: How could the integration support it?
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: Screenshots from the OBI app, related issues, device models.

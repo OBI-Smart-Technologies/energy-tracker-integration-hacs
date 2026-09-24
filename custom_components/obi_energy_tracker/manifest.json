@@ -1,0 +1,14 @@
+{
+  "domain": "obi_energy_tracker",
+  "name": "OBI ENERGY TRACKER",
+  "codeowners": ["@FabiNaryOBI", "@clemenslermen-obi"],
+  "config_flow": true,
+  "dependencies": ["recorder"],
+  "documentation": "https://github.com/OBI-Smart-Technologies/energy-tracker-integration-hacs",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/OBI-Smart-Technologies/energy-tracker-integration-hacs/issues",
+  "loggers": ["obi_energy_tracker"],
+  "requirements": ["obi-energy-tracker==0.1.0"],
+  "version": "0.1.0"
+}

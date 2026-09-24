@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hassfest:
+    name: Home Assistant hassfest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    name: HACS validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hacs/action@main
+        with:
+          category: integration
+
+  lint:
+    name: Lint and type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: ruff check
+        run: ruff check custom_components tests
+      - name: ruff format
+        run: ruff format --check custom_components tests
+      - name: mypy
+        run: mypy
+      - name: Library pin matches the manifest requirement
+        run: |
+          python - <<'PY'
+          import json
+          import pathlib
+          import tomllib
+
+          manifest = json.loads(
+              pathlib.Path("custom_components/obi_energy_tracker/manifest.json").read_text()
+          )
+          pyproject = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+          dev = pyproject["project"]["optional-dependencies"]["dev"]
+          required = set(manifest["requirements"])
+          missing = required - set(dev)
+          if missing:
+              raise SystemExit(
+                  f"manifest.json requires {sorted(missing)}, "
+                  f"which the dev extra does not install: {dev}"
+              )
+          print(f"manifest requirements installed for tests: {sorted(required)}")
+          PY
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: pytest -q

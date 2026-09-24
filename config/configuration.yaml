@@ -1,0 +1,9 @@
+default_config:
+
+homeassistant:
+  debug: true
+
+logger:
+  default: info
+  logs:
+    custom_components.obi_energy_tracker: debug

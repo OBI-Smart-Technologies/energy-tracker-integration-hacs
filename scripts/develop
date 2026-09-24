@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+ln -sfn ../custom_components config/custom_components
+
+hass --config "${PWD}/config" --debug

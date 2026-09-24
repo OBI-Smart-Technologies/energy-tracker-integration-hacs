@@ -1,0 +1,60 @@
+name: Bug report
+description: Something in the integration does not work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: check **Settings → Devices & services → OBI ENERGY TRACKER →
+        Download diagnostics**. The file has tokens removed and answers most questions at
+        once.
+  - type: input
+    id: integration-version
+    attributes:
+      label: Integration version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: ha-version
+    attributes:
+      label: Home Assistant version
+      placeholder: 2026.8.3
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - HACS
+        - Copied the folder manually
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log output
+      description: >
+        Add `logger: {default: warning, logs: {custom_components.obi_energy_tracker: debug}}`
+        to configuration.yaml, restart, reproduce, then paste the log. Remove tokens,
+        email addresses and device IDs you do not want public.
+      render: shell
+  - type: textarea
+    id: devices
+    attributes:
+      label: Affected devices
+      description: Bridge, sensor, outlet — and how many of each.

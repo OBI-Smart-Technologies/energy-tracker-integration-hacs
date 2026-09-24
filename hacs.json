@@ -1,0 +1,7 @@
+{
+  "name": "OBI ENERGY TRACKER",
+  "homeassistant": "2026.8.0",
+  "render_readme": true,
+  "zip_release": true,
+  "filename": "obi_energy_tracker.zip"
+}
