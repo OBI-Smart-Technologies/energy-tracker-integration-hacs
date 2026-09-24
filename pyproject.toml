@@ -18,8 +18,8 @@ packages = []
 dev = [
     "mypy==2.3.1",
     "obi-energy-tracker==0.1.0",
-    "pytest-homeassistant-custom-component==0.13.357",
-    "ruff==0.16.4",
+    "pytest-homeassistant-custom-component==0.13.366",
+    "ruff==0.16.8",
 ]
 
 [tool.pytest.ini_options]
