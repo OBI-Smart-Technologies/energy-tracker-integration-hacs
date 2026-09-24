@@ -459,10 +459,15 @@ class TestStaleDevices:
 
         await coordinator._async_update_data()
 
-        assert device_reg.async_get_device(identifiers={(DOMAIN, "sensor-001")})
-        assert device_reg.async_get_device(identifiers={(DOMAIN, "bridge-001")})
+        for obi_id in ("sensor-001", "bridge-001"):
+            assert device_reg.async_get_device_by_identifier(
+                (DOMAIN, obi_id), entry.entry_id
+            )
         assert (
-            device_reg.async_get_device(identifiers={(DOMAIN, "sensor-gone")}) is None
+            device_reg.async_get_device_by_identifier(
+                (DOMAIN, "sensor-gone"), entry.entry_id
+            )
+            is None
         )
 
     async def test_foreign_identifiers_are_kept(
@@ -480,7 +485,96 @@ class TestStaleDevices:
 
         await coordinator._async_update_data()
 
-        assert device_reg.async_get_device(identifiers={("other", "x-1")})
+        assert device_reg.async_get_device_by_identifier(
+            ("other", "x-1"), entry.entry_id
+        )
+
+
+class TestDeviceRegistration:
+    async def test_bridge_device_registered(
+        self, hass: HomeAssistant, mock_api: AsyncMock
+    ) -> None:
+        mock_api.async_get_bridges.return_value = [
+            make_bridge(
+                id="bridge-99",
+                label="My Bridge",
+                firmware_version="3.2.1",
+                hardware_version="4.0.0",
+            )
+        ]
+        coordinator = _make_coordinator(hass, mock_api)
+
+        await coordinator._async_update_data()
+
+        device = dr.async_get(hass).async_get_device_by_identifier(
+            (DOMAIN, "bridge-99"), coordinator.config_entry.entry_id
+        )
+        assert device is not None
+        assert device.name == "OBI Bridge My Bridge"
+        assert device.manufacturer == "OBI"
+        assert device.model == "ENERGY TRACKER Bridge"
+        assert device.sw_version == "3.2.1"
+        assert device.hw_version == "4.0.0"
+
+    async def test_sensor_and_outlet_devices_registered(
+        self, hass: HomeAssistant, mock_api: AsyncMock
+    ) -> None:
+        mock_api.async_get_bridges.return_value = [
+            make_bridge(
+                id="br-1",
+                sensors=[
+                    make_sensor(id="s-1", bridge_id="br-1", display_name="Garage")
+                ],
+                outlets=[
+                    make_outlet(id="o-1", bridge_id="br-1", display_name="Terrasse")
+                ],
+            )
+        ]
+        coordinator = _make_coordinator(hass, mock_api)
+
+        await coordinator._async_update_data()
+
+        device_reg = dr.async_get(hass)
+        entry_id = coordinator.config_entry.entry_id
+        sensor_device = device_reg.async_get_device_by_identifier(
+            (DOMAIN, "s-1"), entry_id
+        )
+        outlet_device = device_reg.async_get_device_by_identifier(
+            (DOMAIN, "o-1"), entry_id
+        )
+        bridge_device = device_reg.async_get_device_by_identifier(
+            (DOMAIN, "br-1"), entry_id
+        )
+
+        assert bridge_device is not None
+        assert sensor_device is not None
+        assert sensor_device.name == "Garage"
+        assert sensor_device.model == "ENERGY TRACKER Sensor"
+        assert sensor_device.via_device_id == bridge_device.id
+        assert outlet_device is not None
+        assert outlet_device.name == "Terrasse"
+        assert outlet_device.model == "ENERGY TRACKER Outlet"
+        assert outlet_device.via_device_id == bridge_device.id
+
+    async def test_firmware_version_follows_the_bridge(
+        self, hass: HomeAssistant, mock_api: AsyncMock
+    ) -> None:
+        coordinator = _make_coordinator(hass, mock_api)
+        mock_api.async_get_bridges.return_value = [
+            make_bridge(firmware_version="1.0.0")
+        ]
+        await coordinator._async_update_data()
+
+        mock_api.async_get_bridges.return_value = [
+            make_bridge(firmware_version="1.1.0")
+        ]
+        await coordinator._async_update_data()
+
+        device = dr.async_get(hass).async_get_device_by_identifier(
+            (DOMAIN, "bridge-001"), coordinator.config_entry.entry_id
+        )
+        assert device is not None
+        assert device.sw_version == "1.1.0"
 
 
 class TestErrorHandling:

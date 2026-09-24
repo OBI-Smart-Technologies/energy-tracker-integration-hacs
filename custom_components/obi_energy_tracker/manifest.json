@@ -10,5 +10,5 @@
   "issue_tracker": "https://github.com/OBI-Smart-Technologies/energy-tracker-integration-hacs/issues",
   "loggers": ["obi_energy_tracker"],
   "requirements": ["obi-energy-tracker==0.1.0"],
-  "version": "0.1.0"
+  "version": "0.1.1"
 }

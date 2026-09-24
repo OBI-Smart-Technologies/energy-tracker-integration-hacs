@@ -49,6 +49,10 @@ from .const import (
     DOMAIN,
     KEY_CONSUMPTION,
     KEY_FEED_IN,
+    MANUFACTURER,
+    MODEL_BRIDGE,
+    MODEL_OUTLET,
+    MODEL_SENSOR,
     SCAN_INTERVAL_MINUTES,
 )
 
@@ -195,6 +199,7 @@ class ObiEnergyTrackerCoordinator(DataUpdateCoordinator[ObiEnergyTrackerData]):
                 devices=devices,
                 firmware_updates=firmware_updates,
             )
+            self._async_register_devices(data)
             self._async_remove_stale_devices(data)
             return data
 
@@ -208,6 +213,32 @@ class ObiEnergyTrackerCoordinator(DataUpdateCoordinator[ObiEnergyTrackerData]):
                 translation_key="update_failed",
                 translation_placeholders={"error": str(err)},
             ) from err
+
+    @callback
+    def _async_register_devices(self, data: ObiEnergyTrackerData) -> None:
+        device_reg = dr.async_get(self.hass)
+        entry_id = self.config_entry.entry_id
+        for bridge in data.bridges:
+            bridge_device = device_reg.async_get_or_create(
+                config_entry_id=entry_id,
+                identifiers={(DOMAIN, bridge.id)},
+                name=bridge.display_name,
+                manufacturer=MANUFACTURER,
+                model=MODEL_BRIDGE,
+                sw_version=bridge.firmware_version,
+                hw_version=bridge.hardware_version,
+            )
+            for device in bridge.devices:
+                device_reg.async_get_or_create(
+                    config_entry_id=entry_id,
+                    identifiers={(DOMAIN, device.id)},
+                    name=device.display_name,
+                    manufacturer=MANUFACTURER,
+                    model=MODEL_OUTLET if device.is_outlet else MODEL_SENSOR,
+                    sw_version=device.firmware_version,
+                    hw_version=device.hardware_version,
+                    via_device_id=bridge_device.id,
+                )
 
     @callback
     def _async_remove_stale_devices(self, data: ObiEnergyTrackerData) -> None:

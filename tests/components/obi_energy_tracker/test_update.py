@@ -118,9 +118,7 @@ class TestEntityMetadata:
         coord = _make_coordinator_mock(_make_data())
         entity = _make_update(coord)
 
-        assert entity.device_info["identifiers"] == {(DOMAIN, BRIDGE_ID)}
-        assert entity.device_info["model"] == "ENERGY TRACKER Bridge"
-        assert "via_device" not in entity.device_info
+        assert entity.device_info == {"identifiers": {(DOMAIN, BRIDGE_ID)}}
 
 
 class TestVersions:
