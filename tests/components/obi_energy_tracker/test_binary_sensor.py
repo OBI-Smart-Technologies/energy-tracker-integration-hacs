@@ -64,8 +64,7 @@ class TestEntity:
         coord = _make_coordinator_mock(_make_data())
         entity = ObiOnlineBinarySensor(coord, SENSOR_ID, ONLINE_DESCRIPTION)
 
-        assert entity.device_info["identifiers"] == {(DOMAIN, SENSOR_ID)}
-        assert entity.device_info["via_device"] == (DOMAIN, BRIDGE_ID)
+        assert entity.device_info == {"identifiers": {(DOMAIN, SENSOR_ID)}}
 
     def test_is_on_when_online(self):
         coord = _make_coordinator_mock(_make_data(is_online=True))

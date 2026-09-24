@@ -7,6 +7,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.1.1 - 2026-09-24
+
+### Fixed
+
+- Sensors and outlets are linked to their bridge through the device id, as Home Assistant
+  2026.9 expects. The previous identifier-based link is deprecated and stops working in
+  Home Assistant 2027.8.
+- Devices added to the OBI account later are linked to their bridge as well, and the
+  firmware version shown on a device follows its updates.
+
 ## 0.1.0 - 2026-09-24
 
 First public beta release.

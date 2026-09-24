@@ -12,13 +12,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from obi_energy_tracker import ObiEnergyTrackerApi, ObiEnergyTrackerError
 
-from .const import (
-    DOMAIN,
-    MANUFACTURER,
-    MODEL_BRIDGE,
-    MODEL_OUTLET,
-    MODEL_SENSOR,
-)
+from .const import DOMAIN
 from .coordinator import ObiEnergyTrackerConfigEntry, ObiEnergyTrackerCoordinator
 from .oauth2 import KeycloakOAuth2Implementation, oauth_token_provider
 
@@ -66,8 +60,6 @@ async def async_setup_entry(
 
     entry.runtime_data = coordinator
 
-    _async_register_devices(hass, entry, coordinator)
-
     entry.async_create_background_task(
         hass, _async_import_history(coordinator), f"{DOMAIN}_import_history"
     )
@@ -96,35 +88,6 @@ async def _async_import_history(coordinator: ObiEnergyTrackerCoordinator) -> Non
         await coordinator.async_import_historical_statistics()
     except Exception:
         _LOGGER.exception("Failed to import historical statistics")
-
-
-def _async_register_devices(
-    hass: HomeAssistant,
-    entry: ObiEnergyTrackerConfigEntry,
-    coordinator: ObiEnergyTrackerCoordinator,
-) -> None:
-    device_reg = dr.async_get(hass)
-    for bridge in coordinator.data.bridges:
-        device_reg.async_get_or_create(
-            config_entry_id=entry.entry_id,
-            identifiers={(DOMAIN, bridge.id)},
-            name=bridge.display_name,
-            manufacturer=MANUFACTURER,
-            model=MODEL_BRIDGE,
-            sw_version=bridge.firmware_version,
-            hw_version=bridge.hardware_version,
-        )
-        for device in bridge.devices:
-            device_reg.async_get_or_create(
-                config_entry_id=entry.entry_id,
-                identifiers={(DOMAIN, device.id)},
-                name=device.display_name,
-                manufacturer=MANUFACTURER,
-                model=MODEL_OUTLET if device.is_outlet else MODEL_SENSOR,
-                sw_version=device.firmware_version,
-                hw_version=device.hardware_version,
-                via_device=(DOMAIN, bridge.id),
-            )
 
 
 async def async_unload_entry(

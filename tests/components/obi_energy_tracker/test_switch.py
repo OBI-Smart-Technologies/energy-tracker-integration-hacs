@@ -81,9 +81,7 @@ class TestEntityMetadata:
         coord = _make_coordinator_mock(_make_data())
         entity = _make_switch(coord)
 
-        assert entity.device_info["identifiers"] == {(DOMAIN, OUTLET_ID)}
-        assert entity.device_info["via_device"] == (DOMAIN, BRIDGE_ID)
-        assert entity.device_info["model"] == "ENERGY TRACKER Outlet"
+        assert entity.device_info == {"identifiers": {(DOMAIN, OUTLET_ID)}}
 
 
 class TestState:

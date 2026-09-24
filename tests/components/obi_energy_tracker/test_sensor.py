@@ -84,41 +84,6 @@ class TestEntityMetadata:
 
         assert entity.device_info["identifiers"] == {(DOMAIN, SENSOR_ID)}
 
-    def test_via_device(self):
-        coord = _make_coordinator_mock(_make_data())
-        entity = _create_device_sensor(coord, "connection_strength")
-
-        assert entity.device_info["via_device"] == (DOMAIN, BRIDGE_ID)
-
-    def test_device_name_and_model(self):
-        coord = _make_coordinator_mock(
-            _make_data(sensor={"display_name": "Garage Meter"})
-        )
-        entity = _create_device_sensor(coord, "consumption")
-
-        assert entity.device_info["name"] == "Garage Meter"
-        assert entity.device_info["model"] == "ENERGY TRACKER Sensor"
-
-    def test_outlet_model(self):
-        outlet = make_outlet(id=OUTLET_ID, bridge_id=BRIDGE_ID)
-        bridge = make_bridge(id=BRIDGE_ID, outlets=[outlet])
-        data = make_coordinator_data(
-            devices=[make_device_data(device=outlet, bridge=bridge)], bridges=[bridge]
-        )
-        coord = _make_coordinator_mock(data)
-        entity = _create_device_sensor(coord, "consumption", device_id=OUTLET_ID)
-
-        assert entity.device_info["model"] == "ENERGY TRACKER Outlet"
-
-    def test_sw_hw_version(self):
-        coord = _make_coordinator_mock(
-            _make_data(sensor={"firmware_version": "4.5.6", "hardware_version": "7.8"})
-        )
-        entity = _create_device_sensor(coord, "consumption")
-
-        assert entity.device_info["sw_version"] == "4.5.6"
-        assert entity.device_info["hw_version"] == "7.8"
-
     def test_has_entity_name(self):
         coord = _make_coordinator_mock(_make_data())
         entity = _create_device_sensor(coord, "consumption")

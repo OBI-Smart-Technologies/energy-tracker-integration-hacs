@@ -31,7 +31,6 @@ from .conftest import (
     make_device_data,
     make_mock_oauth_implementation,
     make_mock_oauth_session,
-    make_outlet,
     make_sensor,
 )
 
@@ -149,56 +148,6 @@ class TestAsyncSetupEntry:
 
         ctx.mock_coord.async_config_entry_first_refresh.assert_called_once()
 
-    async def test_bridge_device_registered(
-        self, hass: HomeAssistant, mock_config_entry: MockConfigEntry
-    ) -> None:
-        bridge = make_bridge(
-            id="bridge-99",
-            label="My Bridge",
-            firmware_version="3.2.1",
-            hardware_version="4.0.0",
-        )
-        with _patch_coordinator_and_api(bridges=[bridge], hass=hass):
-            await async_setup_entry(hass, mock_config_entry)
-
-        device = dr.async_get(hass).async_get_device(
-            identifiers={(DOMAIN, "bridge-99")}
-        )
-        assert device is not None
-        assert device.name == "OBI Bridge My Bridge"
-        assert device.manufacturer == "OBI"
-        assert device.model == "ENERGY TRACKER Bridge"
-        assert device.sw_version == "3.2.1"
-        assert device.hw_version == "4.0.0"
-
-    async def test_sensor_and_outlet_devices_registered(
-        self, hass: HomeAssistant, mock_config_entry: MockConfigEntry
-    ) -> None:
-        bridge = make_bridge(
-            id="br-1",
-            sensors=[
-                make_sensor(id="s-1", bridge_id="br-1", display_name="Wohnung"),
-                make_sensor(id="s-2", bridge_id="br-1", display_name="Garage"),
-            ],
-            outlets=[make_outlet(id="o-1", bridge_id="br-1", display_name="Terrasse")],
-        )
-        with _patch_coordinator_and_api(bridges=[bridge], hass=hass):
-            await async_setup_entry(hass, mock_config_entry)
-
-        device_reg = dr.async_get(hass)
-        sensor_device = device_reg.async_get_device(identifiers={(DOMAIN, "s-2")})
-        outlet_device = device_reg.async_get_device(identifiers={(DOMAIN, "o-1")})
-        bridge_device = device_reg.async_get_device(identifiers={(DOMAIN, "br-1")})
-
-        assert sensor_device is not None
-        assert sensor_device.name == "Garage"
-        assert sensor_device.model == "ENERGY TRACKER Sensor"
-        assert sensor_device.via_device_id == bridge_device.id
-        assert outlet_device is not None
-        assert outlet_device.name == "Terrasse"
-        assert outlet_device.model == "ENERGY TRACKER Outlet"
-        assert outlet_device.via_device_id == bridge_device.id
-
     async def test_platforms_forwarded(
         self, hass: HomeAssistant, mock_config_entry: MockConfigEntry
     ) -> None:
@@ -301,7 +250,10 @@ class TestRemoveConfigEntryDevice:
         with _patch_coordinator_and_api(bridges=[bridge], hass=hass):
             await async_setup_entry(hass, mock_config_entry)
 
-        device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, sensor.id)})
+        device = dr.async_get(hass).async_get_or_create(
+            config_entry_id=mock_config_entry.entry_id,
+            identifiers={(DOMAIN, sensor.id)},
+        )
 
         assert (
             await async_remove_config_entry_device(hass, mock_config_entry, device)
@@ -315,7 +267,10 @@ class TestRemoveConfigEntryDevice:
         with _patch_coordinator_and_api(bridges=[bridge], hass=hass):
             await async_setup_entry(hass, mock_config_entry)
 
-        device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, bridge.id)})
+        device = dr.async_get(hass).async_get_or_create(
+            config_entry_id=mock_config_entry.entry_id,
+            identifiers={(DOMAIN, bridge.id)},
+        )
 
         assert (
             await async_remove_config_entry_device(hass, mock_config_entry, device)
