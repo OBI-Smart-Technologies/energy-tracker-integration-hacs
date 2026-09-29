@@ -7,6 +7,23 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 0.2.0 - 2026-09-29
+
+### Fixed
+
+- Energy costs can be tracked again. The Energy dashboard offers no static or entity price
+  for the imported statistics, so the integration now reads the electricity price and the
+  feed-in compensation set in the OBI app for each device and writes a cost statistic in
+  euros next to each consumption and feed-in statistic. Like the app, the costs always use
+  the current price, for the imported history too, and a changed price reprices the whole
+  history.
+- Devices added to the OBI account later get their statistics and history within one poll
+  instead of only after the next restart.
+
+### Changed
+
+- Requires `obi-energy-tracker` 0.2.0.
+
 ## 0.1.1 - 2026-09-24
 
 ### Fixed

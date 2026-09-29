@@ -237,6 +237,7 @@ def mock_api() -> AsyncMock:
         Measure.ENERGY: [make_measure_record(value=1234.5)]
     }
     mock.async_get_bridge_firmware_update.return_value = None
+    mock.async_get_energy_consumer.return_value = None
     return mock
 
 

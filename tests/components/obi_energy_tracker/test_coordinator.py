@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from freezegun.api import FrozenDateTimeFactory
 from homeassistant.components.recorder import get_instance
 from homeassistant.components.recorder.models import (
     StatisticData,
@@ -15,6 +16,7 @@ from homeassistant.components.recorder.models import (
 from homeassistant.components.recorder.statistics import (
     async_add_external_statistics,
     get_last_statistics,
+    statistics_during_period,
     valid_statistic_id,
 )
 from homeassistant.core import HomeAssistant
@@ -25,6 +27,7 @@ from homeassistant.util import dt as dt_util
 from obi_energy_tracker import (
     ConnectionStrength,
     Device,
+    EnergyConsumer,
     ObiEnergyTrackerAuthError,
     ObiEnergyTrackerError,
     OutletState,
@@ -958,6 +961,61 @@ class TestFirmwareInstall:
             await coordinator.async_install_bridge_firmware("br-1", "fw-1")
 
 
+class TestEnergyPrices:
+    async def test_prices_are_fetched_per_device_once_an_hour(
+        self,
+        hass: HomeAssistant,
+        mock_api: AsyncMock,
+        freezer: FrozenDateTimeFactory,
+    ) -> None:
+        coordinator = _make_coordinator(hass, mock_api)
+        await coordinator.async_setup()
+
+        await coordinator._async_update_data()
+        await coordinator._async_update_data()
+
+        mock_api.async_get_energy_consumer.assert_awaited_once_with("sensor-001")
+
+        freezer.tick(timedelta(hours=1))
+        await coordinator._async_update_data()
+
+        assert mock_api.async_get_energy_consumer.await_count == 2
+
+    async def test_failure_keeps_the_last_prices_and_logs_once(
+        self,
+        hass: HomeAssistant,
+        mock_api: AsyncMock,
+        freezer: FrozenDateTimeFactory,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        mock_api.async_get_energy_consumer.return_value = EnergyConsumer(kwh_price=0.4)
+        coordinator = _make_coordinator(hass, mock_api)
+        await coordinator.async_setup()
+        await coordinator._async_update_data()
+
+        mock_api.async_get_energy_consumer.side_effect = ObiEnergyTrackerError("down")
+        with caplog.at_level(logging.WARNING):
+            for _ in range(2):
+                freezer.tick(timedelta(hours=1))
+                data = await coordinator._async_update_data()
+
+        assert data.devices
+        assert coordinator._price("sensor-001", "consumption") == 0.4
+        assert caplog.text.count("Failed to get energy prices") == 1
+
+    async def test_auth_error_raises_config_entry_auth_failed(
+        self, hass: HomeAssistant, mock_api: AsyncMock
+    ) -> None:
+        mock_api.async_get_energy_consumer.side_effect = ObiEnergyTrackerAuthError(
+            "expired"
+        )
+        coordinator = _make_coordinator(hass, mock_api)
+        await coordinator.async_setup()
+
+        with pytest.raises(ConfigEntryAuthFailed):
+            await coordinator._async_update_data()
+
+
 class TestDataStructure:
     async def test_returned_data_shape(
         self, hass: HomeAssistant, mock_api: AsyncMock
@@ -1483,6 +1541,180 @@ class TestStatisticsImport:
 
         assert data.devices
         assert "Failed to update statistics" in caplog.text
+
+    async def _priced_coordinator(
+        self, hass: HomeAssistant, mock_api: AsyncMock, series: list
+    ) -> ObiEnergyTrackerCoordinator:
+        await hass.config.async_set_time_zone("UTC")
+        mock_api.async_get_energy_consumer.return_value = EnergyConsumer(
+            kwh_price=0.4, feed_in_compensation=0.1
+        )
+        mock_api.async_get_bridge_measures.return_value = _measures(
+            **{"sensor-001": {"energy": series}}
+        )
+        coordinator = _make_coordinator(hass, mock_api)
+        await coordinator.async_setup()
+        await coordinator._async_update_data()
+        return coordinator
+
+    @staticmethod
+    async def _last_sum(hass: HomeAssistant, statistic_id: str) -> float:
+        rows = await get_instance(hass).async_add_executor_job(
+            get_last_statistics, hass, 1, statistic_id, True, {"sum"}
+        )
+        return rows[statistic_id][0]["sum"]
+
+    async def test_costs_follow_the_consumption_at_the_current_price(
+        self, hass: HomeAssistant, mock_api: AsyncMock
+    ) -> None:
+        coordinator = await self._priced_coordinator(hass, mock_api, self._series())
+
+        imported: list = []
+        with _patch_import_statistics(imported):
+            await coordinator.async_import_historical_statistics()
+
+        written = {meta["statistic_id"]: (meta, stats) for meta, stats in imported}
+        assert list(written) == [
+            "obi_energy_tracker:sensor_001_consumption",
+            "obi_energy_tracker:sensor_001_consumption_cost",
+            "obi_energy_tracker:sensor_001_feed_in",
+            "obi_energy_tracker:sensor_001_feed_in_cost",
+        ]
+        meta, cost = written["obi_energy_tracker:sensor_001_consumption_cost"]
+        assert meta["name"] == "Test Sensor Consumption EUR"
+        assert meta["unit_of_measurement"] == "EUR"
+        assert meta["unit_class"] is None
+        assert [entry["start"].hour for entry in cost] == [10, 11, 12, 13]
+        assert [entry["sum"] for entry in cost] == pytest.approx(
+            [0.0528, 0.1104, 0.168, 0.1728]
+        )
+        _, compensation = written["obi_energy_tracker:sensor_001_feed_in_cost"]
+        assert all(entry["sum"] == 0.0 for entry in compensation)
+
+    async def test_cycle_writes_the_costs_with_the_consumption(
+        self, hass: HomeAssistant, mock_api: AsyncMock
+    ) -> None:
+        series = self._series()
+        coordinator = await self._priced_coordinator(hass, mock_api, series)
+        await coordinator.async_import_historical_statistics()
+        await async_wait_recording_done(hass)
+
+        mock_api.async_get_bridge_measures.return_value = _measures(
+            **{
+                "sensor-001": {
+                    "energy": self._series(
+                        start=series[-1].time + timedelta(minutes=5),
+                        count=2,
+                        base=1444.0,
+                    )
+                }
+            }
+        )
+        imported: list = []
+        with _patch_import_statistics(imported):
+            await coordinator._async_update_data()
+
+        written = {meta["statistic_id"]: stats for meta, stats in imported}
+        cost = written["obi_energy_tracker:sensor_001_consumption_cost"]
+        assert [entry["start"].hour for entry in cost] == [13]
+        assert [entry["sum"] for entry in cost] == pytest.approx([0.1824])
+
+    async def test_price_change_reprices_the_whole_history(
+        self,
+        hass: HomeAssistant,
+        mock_api: AsyncMock,
+        freezer: FrozenDateTimeFactory,
+    ) -> None:
+        coordinator = await self._priced_coordinator(hass, mock_api, self._series())
+        await coordinator.async_import_historical_statistics()
+        await async_wait_recording_done(hass)
+
+        mock_api.async_get_energy_consumer.return_value = EnergyConsumer(
+            kwh_price=0.5, feed_in_compensation=0.1
+        )
+        mock_api.async_get_bridge_measures.reset_mock()
+        freezer.tick(timedelta(hours=1))
+        await coordinator._async_update_data()
+        await hass.async_block_till_done(wait_background_tasks=True)
+        await async_wait_recording_done(hass)
+
+        durations = [
+            call.kwargs["duration"]
+            for call in mock_api.async_get_bridge_measures.await_args_list
+        ]
+        assert None in durations
+        statistic_id = f"{DOMAIN}:sensor_001_consumption_cost"
+        rows = await get_instance(hass).async_add_executor_job(
+            statistics_during_period,
+            hass,
+            datetime(2026, 1, 1, 10, 0, tzinfo=UTC),
+            None,
+            {statistic_id},
+            "hour",
+            None,
+            {"sum"},
+        )
+        assert [row["sum"] for row in rows[statistic_id]] == pytest.approx(
+            [0.066, 0.138, 0.21, 0.216]
+        )
+
+    async def test_unchanged_price_catches_up(
+        self, hass: HomeAssistant, mock_api: AsyncMock
+    ) -> None:
+        coordinator = await self._priced_coordinator(hass, mock_api, [])
+        top = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
+        for key, total, cost in (("consumption", 1000.0, 0.4), ("feed_in", 0.0, 0.0)):
+            await self._seed_id(hass, f"{DOMAIN}:sensor_001_{key}", top, total)
+            await self._seed_id(hass, f"{DOMAIN}:sensor_001_{key}_cost", top, cost)
+        mock_api.async_get_bridge_measures.reset_mock()
+
+        await coordinator.async_import_historical_statistics()
+
+        assert mock_api.async_get_bridge_measures.await_args.kwargs["duration"]
+
+    @pytest.mark.parametrize("cost", [None, 0.32])
+    async def test_missing_or_stale_costs_pull_the_full_history(
+        self, hass: HomeAssistant, mock_api: AsyncMock, cost: float | None
+    ) -> None:
+        coordinator = await self._priced_coordinator(hass, mock_api, [])
+        top = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
+        await self._seed_id(hass, f"{DOMAIN}:sensor_001_consumption", top, 1000.0)
+        await self._seed_id(hass, f"{DOMAIN}:sensor_001_feed_in", top, 0.0)
+        await self._seed_id(hass, f"{DOMAIN}:sensor_001_feed_in_cost", top, 0.0)
+        if cost is not None:
+            await self._seed_id(
+                hass, f"{DOMAIN}:sensor_001_consumption_cost", top, cost
+            )
+        mock_api.async_get_bridge_measures.reset_mock()
+
+        await coordinator.async_import_historical_statistics()
+
+        assert mock_api.async_get_bridge_measures.await_args.kwargs["duration"] is None
+
+    async def test_new_device_imports_its_history(
+        self, hass: HomeAssistant, mock_api: AsyncMock
+    ) -> None:
+        await hass.config.async_set_time_zone("UTC")
+        series = self._series()
+        coordinator = _make_coordinator(hass, mock_api)
+        await coordinator.async_setup()
+        await coordinator._async_update_data()
+
+        mock_api.async_get_bridges.return_value = [
+            make_bridge(
+                sensors=[make_sensor(), make_sensor(id="sensor-002")],
+            )
+        ]
+        mock_api.async_get_bridge_measures.return_value = _measures(
+            **{"sensor-002": {"energy": series}}
+        )
+        await coordinator._async_update_data()
+        await hass.async_block_till_done(wait_background_tasks=True)
+        await async_wait_recording_done(hass)
+
+        assert await self._last_sum(
+            hass, f"{DOMAIN}:sensor_002_consumption"
+        ) == pytest.approx(432.0)
 
     @staticmethod
     async def _seed_id(

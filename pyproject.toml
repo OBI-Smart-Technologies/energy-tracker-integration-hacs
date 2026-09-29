@@ -1,6 +1,6 @@
 [project]
 name = "energy-tracker-integration-hacs"
-version = "0.1.1"
+version = "0.2.0"
 description = "OBI ENERGY TRACKER Home Assistant Integration"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
@@ -17,7 +17,7 @@ packages = []
 [project.optional-dependencies]
 dev = [
     "mypy==2.3.1",
-    "obi-energy-tracker==0.1.0",
+    "obi-energy-tracker==0.2.0",
     "pytest-homeassistant-custom-component==0.13.366",
     "ruff==0.16.8",
 ]

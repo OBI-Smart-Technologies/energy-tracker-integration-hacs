@@ -42,6 +42,26 @@ Assistant instance*.
 - Never commit caches, build artefacts or IDE files. `git add` new files
   immediately after creating them. Use `gh`; this is a GitHub project.
 
+## Branch, commit and pull request
+
+- Start every change on a fresh branch: check out `main`, update it with
+  `git pull --ff-only origin main`, then branch off with `git switch -c <branch>`. Do not
+  branch with `git checkout -b <branch> origin/main`, the branch would track `main` and a
+  plain `git push` would target it.
+- Never commit, push or merge. Prepare the commit message in the IntelliJ commit box by
+  writing it to the local commit template instead:
+
+  ```bash
+  printf '%s' "fix: <summary>" > "$(git rev-parse --show-toplevel)/.git/commit-template.txt"
+  ```
+
+  Register the template once per clone with
+  `git config --local commit.template "$(git rev-parse --show-toplevel)/.git/commit-template.txt"`.
+  Never write to `.git/COMMIT_EDITMSG`. IntelliJ only fills an empty box, and the file is
+  emptied after the commit.
+- The user opens the pull requests (merge requests). Print the pull request body in the chat
+  following `.github/PULL_REQUEST_TEMPLATE.md`.
+
 ## Testing
 
 - One `test_{module}.py` per module, under `tests/components/obi_energy_tracker/`.
@@ -93,6 +113,28 @@ Assistant instance*.
   one statistic. Giving them `TOTAL_INCREASING` back reintroduces both the negative spike
   and a duplicate entry per measure in every statistic picker. The entities keep their
   `states`, so history cards, templates and `utility_meter` helpers are unaffected.
+- Costs are external statistics too, `{DOMAIN}:{slugify(device_id)}_{key}_cost` in
+  `EUR`, written next to each measure only when the device's energy consumer in the OBI
+  app has a price for it (`async_get_energy_consumer()`, fetched on the first poll and
+  then once per `PRICE_REFRESH_INTERVAL`). The Energy dashboard greys out *static price*
+  and *entity with current price* for external statistics, and core's cost sensor only
+  prices a valid entity id, so this is the only way to track costs. Tibber and opower do
+  the same with costs their cloud delivers. There is no price option in Home Assistant,
+  the price comes from the backend only.
+- The cost statistic is **always the energy statistic priced with the current price**,
+  row by row (`hourly_costs()` over the `cumulative()` rows, `energy_cost()` for a single
+  value), exactly like the app. This is a hard requirement: do not add a cost cursor,
+  "costs start with the first price" or per-hour historic prices. The backend only knows
+  the current price, so a changed price reprices the whole history.
+- `_write()` writes the energy rows and, when the measure has a price, the cost rows from
+  the same rows in one go, so both series always cover the same hours and
+  `cost.sum == energy_cost(energy.sum, price)` holds for every row.
+- `_async_catch_up_duration()` returns `None` (full history) when a priced measure has no
+  cost row or its last cost row does not match the last energy row at the current price
+  (`_async_costs_match()`). That is how a price changed while Home Assistant was down gets
+  applied. At runtime the hourly price refresh schedules `async_import_history(full=True)`
+  when a price appears or changes, and the topology refresh schedules a catch-up import
+  when a new device appears.
 - `slugify()` in the statistic id is load-bearing: device ids carry hyphens
   (`sensor-001`) and neither `VALID_STATISTIC_ID` nor `VALID_ENTITY_ID` admits one.
 - The statistic metadata `name` is `{device.display_name} {label}`, where `label` comes
