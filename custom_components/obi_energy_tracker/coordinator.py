@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from math import ceil
+from math import ceil, isclose
 from typing import override
 
 from homeassistant.components.recorder import get_instance
@@ -14,11 +15,13 @@ from homeassistant.components.recorder.models import (
     StatisticMetaData,
 )
 from homeassistant.components.recorder.statistics import (
+    StatisticsRow,
     async_add_external_statistics,
     get_last_statistics,
     statistics_during_period,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import UnitOfEnergy
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import device_registry as dr
@@ -31,6 +34,7 @@ from obi_energy_tracker import (
     Bridge,
     ConnectionStrength,
     Device,
+    EnergyConsumer,
     FirmwareUpdate,
     HourlyBucket,
     Measure,
@@ -41,7 +45,9 @@ from obi_energy_tracker import (
     OutletState,
     connection_strength_from_rssi,
     cumulative,
+    energy_cost,
     hourly_buckets,
+    hourly_costs,
     to_series,
 )
 
@@ -64,6 +70,10 @@ STATISTICS_WARMUP_BUCKETS = 1
 
 CATCH_UP_MARGIN = timedelta(hours=2)
 
+PRICE_REFRESH_INTERVAL = timedelta(hours=1)
+
+COST_UNIT = "EUR"
+
 DEVICE_MEASURES: tuple[Measure, ...] = (
     Measure.ENERGY,
     Measure.NEGATIVE_ENERGY,
@@ -75,6 +85,13 @@ STATISTIC_MEASURES: dict[Measure, str] = {
     Measure.ENERGY: KEY_CONSUMPTION,
     Measure.NEGATIVE_ENERGY: KEY_FEED_IN,
 }
+
+STATISTIC_PRICES: dict[str, Callable[[EnergyConsumer], float | None]] = {
+    KEY_CONSUMPTION: lambda consumer: consumer.kwh_price,
+    KEY_FEED_IN: lambda consumer: consumer.feed_in_compensation,
+}
+
+COST_KEYS: dict[str, str] = {f"{key}_cost": key for key in STATISTIC_MEASURES.values()}
 
 STATISTIC_LABEL_FALLBACKS: dict[str, str] = {
     KEY_CONSUMPTION: "Consumption",
@@ -171,6 +188,9 @@ class ObiEnergyTrackerCoordinator(DataUpdateCoordinator[ObiEnergyTrackerData]):
         self._bridges: list[Bridge] = []
         self._feed_in: dict[str, float] = {}
         self._cursors: dict[tuple[str, str], MeterCursor] = {}
+        self._prices: dict[str, EnergyConsumer] = {}
+        self._prices_fetched: datetime | None = None
+        self._prices_failed = False
         self._labels: dict[str, str] = dict(STATISTIC_LABEL_FALLBACKS)
         self._measures_failed: set[str] = set()
         self._firmware_failed: set[str] = set()
@@ -183,6 +203,7 @@ class ObiEnergyTrackerCoordinator(DataUpdateCoordinator[ObiEnergyTrackerData]):
     async def _async_update_data(self) -> ObiEnergyTrackerData:
         try:
             await self._async_refresh_topology()
+            await self._async_refresh_prices()
 
             results = await asyncio.gather(
                 *(self._async_fetch_bridge(bridge) for bridge in self._bridges)
@@ -263,6 +284,7 @@ class ObiEnergyTrackerCoordinator(DataUpdateCoordinator[ObiEnergyTrackerData]):
             _LOGGER.exception("Failed to update statistics for bridge %s", bridge.id)
 
     async def _async_refresh_topology(self) -> None:
+        known = {device.id for bridge in self._bridges for device in bridge.devices}
         try:
             self._bridges = await self.client.async_get_bridges()
         except ObiEnergyTrackerAuthError:
@@ -279,6 +301,67 @@ class ObiEnergyTrackerCoordinator(DataUpdateCoordinator[ObiEnergyTrackerData]):
             if self._topology_failed:
                 self._topology_failed = False
                 _LOGGER.info("Device metadata is available again")
+            current = {
+                device.id for bridge in self._bridges for device in bridge.devices
+            }
+            if known and current - known:
+                self._async_schedule_import(full=False)
+
+    async def _async_refresh_prices(self) -> None:
+        now = dt_util.utcnow()
+        if (
+            self._prices_fetched is not None
+            and now - self._prices_fetched < PRICE_REFRESH_INTERVAL
+        ):
+            return
+        devices = [device for bridge in self._bridges for device in bridge.devices]
+        try:
+            consumers = await asyncio.gather(
+                *(
+                    self.client.async_get_energy_consumer(device.id)
+                    for device in devices
+                )
+            )
+        except ObiEnergyTrackerAuthError:
+            raise
+        except ObiEnergyTrackerError as err:
+            if not self._prices_failed:
+                self._prices_failed = True
+                _LOGGER.warning(
+                    "Failed to get energy prices (%s), using the last known prices", err
+                )
+            return
+        if self._prices_failed:
+            self._prices_failed = False
+            _LOGGER.info("Energy prices are available again")
+        known = self._prices_fetched is not None
+        before = self._priced()
+        self._prices_fetched = now
+        self._prices = {
+            device.id: consumer
+            for device, consumer in zip(devices, consumers, strict=True)
+            if consumer is not None
+        }
+        if known and self._priced().items() - before.items():
+            self._async_schedule_import(full=True)
+
+    def _price(self, device_id: str, key: str) -> float | None:
+        consumer = self._prices.get(device_id)
+        return None if consumer is None else STATISTIC_PRICES[key](consumer)
+
+    def _priced(self) -> dict[tuple[str, str], float]:
+        return {
+            (device_id, key): price
+            for device_id in self._prices
+            for key in STATISTIC_MEASURES.values()
+            if (price := self._price(device_id, key)) is not None
+        }
+
+    @callback
+    def _async_schedule_import(self, full: bool) -> None:
+        self.config_entry.async_create_background_task(
+            self.hass, self.async_import_history(full), f"{DOMAIN}_import_history"
+        )
 
     async def _async_fetch_bridge(
         self, bridge: Bridge
@@ -386,12 +469,18 @@ class ObiEnergyTrackerCoordinator(DataUpdateCoordinator[ObiEnergyTrackerData]):
             ) from err
         await self.async_request_refresh()
 
-    async def async_import_historical_statistics(self) -> None:
+    async def async_import_history(self, full: bool = False) -> None:
+        try:
+            await self.async_import_historical_statistics(full)
+        except Exception:
+            _LOGGER.exception("Failed to import historical statistics")
+
+    async def async_import_historical_statistics(self, full: bool = False) -> None:
         await self._async_resolve_labels()
         for bridge in self._bridges:
             if not bridge.devices:
                 continue
-            duration = await self._async_catch_up_duration(bridge)
+            duration = None if full else await self._async_catch_up_duration(bridge)
             try:
                 readings = await self.client.async_get_bridge_measures(
                     bridge.id,
@@ -419,25 +508,41 @@ class ObiEnergyTrackerCoordinator(DataUpdateCoordinator[ObiEnergyTrackerData]):
         oldest: datetime | None = None
         for device in bridge.devices:
             for key in STATISTIC_MEASURES.values():
-                last = await self._async_last_statistic_start(
-                    _statistic_id(device.id, key)
-                )
-                if last is None:
+                energy = await self._async_last_statistic(_statistic_id(device.id, key))
+                if energy is None:
                     return None
+                price = self._price(device.id, key)
+                if price is not None and not await self._async_costs_match(
+                    device, key, energy, price
+                ):
+                    return None
+                last = dt_util.utc_from_timestamp(energy["start"])
                 oldest = last if oldest is None else min(oldest, last)
         if oldest is None:
             return None
         window = dt_util.utcnow() - (oldest - CATCH_UP_MARGIN)
         return f"PT{ceil(window.total_seconds() / 3600)}H"
 
-    async def _async_last_statistic_start(self, statistic_id: str) -> datetime | None:
+    async def _async_last_statistic(self, statistic_id: str) -> StatisticsRow | None:
         rows = await get_instance(self.hass).async_add_executor_job(
-            get_last_statistics, self.hass, 1, statistic_id, True, set()
+            get_last_statistics, self.hass, 1, statistic_id, True, {"sum"}
         )
-        row = next(iter(rows.get(statistic_id, [])), None)
-        if row is None:
-            return None
-        return dt_util.utc_from_timestamp(row["start"])
+        return next(iter(rows.get(statistic_id, [])), None)
+
+    async def _async_costs_match(
+        self, device: Device, key: str, energy: StatisticsRow, price: float
+    ) -> bool:
+        cost = await self._async_last_statistic(_statistic_id(device.id, f"{key}_cost"))
+        return (
+            cost is not None
+            and cost["start"] == energy["start"]
+            and isclose(
+                cost.get("sum") or 0.0,
+                energy_cost(energy.get("sum") or 0.0, price),
+                rel_tol=1e-9,
+                abs_tol=1e-9,
+            )
+        )
 
     async def _async_write_bridge_statistics(
         self,
@@ -553,21 +658,11 @@ class ObiEnergyTrackerCoordinator(DataUpdateCoordinator[ObiEnergyTrackerData]):
         shift: float,
         last: tuple[datetime, float],
     ) -> None:
-        statistic_id = _statistic_id(device.id, key)
-        metadata = StatisticMetaData(
-            mean_type=StatisticMeanType.NONE,
-            has_sum=True,
-            name=f"{device.display_name} {self._labels[key]}",
-            source=DOMAIN,
-            statistic_id=statistic_id,
-            unit_of_measurement="Wh",
-            unit_class="energy",
-        )
-        statistics = [
-            StatisticData(start=bucket.start, state=bucket.meter, sum=total + shift)
-            for bucket, total in buckets
-        ]
-        async_add_external_statistics(self.hass, metadata, statistics)
+        rows = [(bucket, total + shift) for bucket, total in buckets]
+        self._add_statistics(device, key, rows)
+        price = self._price(device.id, key)
+        if price is not None:
+            self._add_statistics(device, f"{key}_cost", hourly_costs(rows, price))
 
         last_bucket, last_total = buckets[-1]
         self._cursors[(device.id, key)] = MeterCursor(
@@ -575,10 +670,39 @@ class ObiEnergyTrackerCoordinator(DataUpdateCoordinator[ObiEnergyTrackerData]):
         )
         _LOGGER.debug(
             "Wrote %d hourly rows for %s of device %s (%s .. %s, offset %s)",
-            len(statistics),
+            len(rows),
             key,
             device.id,
             buckets[0][0].start.isoformat(),
             last_bucket.start.isoformat(),
             shift,
+        )
+
+    @callback
+    def _add_statistics(
+        self, device: Device, key: str, rows: list[tuple[HourlyBucket, float]]
+    ) -> None:
+        measure_key = COST_KEYS.get(key)
+        unit: str
+        if measure_key is None:
+            name = f"{device.display_name} {self._labels[key]}"
+            unit, unit_class = UnitOfEnergy.WATT_HOUR, "energy"
+        else:
+            name = f"{device.display_name} {self._labels[measure_key]} {COST_UNIT}"
+            unit, unit_class = COST_UNIT, None
+        async_add_external_statistics(
+            self.hass,
+            StatisticMetaData(
+                mean_type=StatisticMeanType.NONE,
+                has_sum=True,
+                name=name,
+                source=DOMAIN,
+                statistic_id=_statistic_id(device.id, key),
+                unit_of_measurement=unit,
+                unit_class=unit_class,
+            ),
+            [
+                StatisticData(start=bucket.start, state=bucket.meter, sum=total)
+                for bucket, total in rows
+            ],
         )

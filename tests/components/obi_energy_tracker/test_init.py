@@ -83,7 +83,7 @@ def _patch_coordinator_and_api(bridges=None, data=None, hass=None):
             self.mock_coord = self.mock_coord_cls.return_value
             self.mock_coord.async_setup = AsyncMock()
             self.mock_coord.async_config_entry_first_refresh = AsyncMock()
-            self.mock_coord.async_import_historical_statistics = AsyncMock()
+            self.mock_coord.async_import_history = AsyncMock()
             self.mock_coord.data = data
             if self._hass is not None:
                 self._forward_cm = patch.object(
@@ -164,7 +164,7 @@ class TestAsyncSetupEntry:
             await async_setup_entry(hass, mock_config_entry)
             await hass.async_block_till_done()
 
-        ctx.mock_coord.async_import_historical_statistics.assert_awaited_once()
+        ctx.mock_coord.async_import_history.assert_awaited_once()
 
     async def test_api_error_raises_config_entry_not_ready(
         self, hass: HomeAssistant, mock_config_entry: MockConfigEntry

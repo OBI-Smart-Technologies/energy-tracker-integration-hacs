@@ -143,6 +143,16 @@ Set it up once under **Settings → Dashboards → Energy**:
 | Grid consumption | *<sensor name> Consumption* |
 | Return to grid | *<sensor name> Feed-in* |
 | Individual devices | *<outlet name> Consumption* |
+| Grid consumption costs | *<sensor name> Consumption EUR* |
+| Return to grid compensation | *<sensor name> Feed-in EUR* |
+
+The Energy dashboard cannot price these statistics itself, so the options *static price* and
+*entity with current price* are greyed out. Set the electricity price and the feed-in
+compensation of the device in the OBI app instead. The integration reads them every hour
+and writes a cost statistic in euros next to each consumption and feed-in statistic, which
+you pick under *Use an entity tracking the total costs*. Like the app, the costs always use
+the current price, for the imported history too. When the price changes, the integration
+reprices the whole history, so the dashboard shows the same costs as the app.
 
 The integration imports the meter history from the OBI cloud as long-term statistics, so the
 dashboard also shows the time before the setup. These statistics are named after the device
@@ -152,7 +162,7 @@ each measure has exactly one statistic, so it cannot be counted twice. The entit
 their states for history cards, automations and templates.
 
 The picker searches these statistics by their ID, not by the displayed name. If typing the
-device name finds nothing, type `consumption` or `feed_in` instead.
+device name finds nothing, type `consumption` or `feed_in` instead, or `cost` for the cost statistics.
 
 ## How data is updated
 

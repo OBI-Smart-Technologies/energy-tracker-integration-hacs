@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import logging
-
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -15,8 +13,6 @@ from obi_energy_tracker import ObiEnergyTrackerApi, ObiEnergyTrackerError
 from .const import DOMAIN
 from .coordinator import ObiEnergyTrackerConfigEntry, ObiEnergyTrackerCoordinator
 from .oauth2 import KeycloakOAuth2Implementation, oauth_token_provider
-
-_LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -61,7 +57,7 @@ async def async_setup_entry(
     entry.runtime_data = coordinator
 
     entry.async_create_background_task(
-        hass, _async_import_history(coordinator), f"{DOMAIN}_import_history"
+        hass, coordinator.async_import_history(), f"{DOMAIN}_import_history"
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -81,13 +77,6 @@ async def async_remove_config_entry_device(
         for identifier in device_entry.identifiers
         if identifier[0] == DOMAIN
     )
-
-
-async def _async_import_history(coordinator: ObiEnergyTrackerCoordinator) -> None:
-    try:
-        await coordinator.async_import_historical_statistics()
-    except Exception:
-        _LOGGER.exception("Failed to import historical statistics")
 
 
 async def async_unload_entry(
