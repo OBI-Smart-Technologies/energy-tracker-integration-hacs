@@ -12,10 +12,6 @@ every bridge, sensor and outlet shows up as a device in Home Assistant. Consumpt
 feed-in go straight into the Energy dashboard, including the history from before the setup.
 Outlets can be switched from automations, and the bridge offers its firmware updates.
 
-> [!NOTE]
-> The integration is in **beta** while the version is below 1.0. Please report anything
-> that does not work as an [issue](https://github.com/OBI-Smart-Technologies/energy-tracker-integration-hacs/issues).
-
 ![The Energy dashboard with an OBI ENERGY TRACKER as the grid meter](https://raw.githubusercontent.com/OBI-Smart-Technologies/energy-tracker-integration-hacs/main/docs/images/energy.png)
 
 ## Contents
