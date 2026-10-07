@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/OBI-Smart-Technologies/energy-tracker-api-client-python/issues
     about: Problems in the REST client, payload parsing or the hourly arithmetic
   - name: Security vulnerability
-    url: https://github.com/OBI-Smart-Technologies/energy-tracker-integration-hacs/security/advisories/new
+    url: https://github.com/OBI-Smart-Technologies/energy-tracker-integration-home-assistant/security/advisories/new
     about: Report privately, never as a public issue
