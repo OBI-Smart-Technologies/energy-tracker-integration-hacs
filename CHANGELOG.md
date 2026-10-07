@@ -7,6 +7,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+## 1.0.0 - 2026-10-07
+
+### Changed
+
+- First stable release. The integration leaves the beta, with no functional changes since 0.2.0.
+- Requires `obi-energy-tracker` 1.0.0.
+
 ## 0.2.0 - 2026-09-29
 
 ### Fixed
