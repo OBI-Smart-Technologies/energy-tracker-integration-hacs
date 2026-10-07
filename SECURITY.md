@@ -10,7 +10,7 @@ and the integration up to date through HACS.
 Please do **not** open a public issue for a security problem.
 
 Report it through GitHub's private vulnerability reporting: open the
-[Security tab](https://github.com/OBI-Smart-Technologies/energy-tracker-integration-hacs/security/advisories/new)
+[Security tab](https://github.com/OBI-Smart-Technologies/energy-tracker-integration-home-assistant/security/advisories/new)
 of this repository and file a draft advisory. Only the maintainers can see it.
 
 Include the affected version, what an attacker could do, and how to reproduce it. Never

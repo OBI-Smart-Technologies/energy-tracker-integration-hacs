@@ -7,6 +7,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
 
+### Changed
+
+- The repository moved to
+  [energy-tracker-integration-home-assistant](https://github.com/OBI-Smart-Technologies/energy-tracker-integration-home-assistant),
+  because HACS does not admit repository names containing "hacs". GitHub redirects the old
+  address, so existing HACS installations keep updating.
+
 ## 1.0.0 - 2026-10-07
 
 ### Changed

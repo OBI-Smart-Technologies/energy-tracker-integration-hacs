@@ -1,7 +1,7 @@
 # OBI ENERGY TRACKER for Home Assistant
 
-[![CI](https://github.com/OBI-Smart-Technologies/energy-tracker-integration-hacs/actions/workflows/ci.yml/badge.svg)](https://github.com/OBI-Smart-Technologies/energy-tracker-integration-hacs/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/OBI-Smart-Technologies/energy-tracker-integration-hacs?sort=semver)](https://github.com/OBI-Smart-Technologies/energy-tracker-integration-hacs/releases)
+[![CI](https://github.com/OBI-Smart-Technologies/energy-tracker-integration-home-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/OBI-Smart-Technologies/energy-tracker-integration-home-assistant/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/OBI-Smart-Technologies/energy-tracker-integration-home-assistant?sort=semver)](https://github.com/OBI-Smart-Technologies/energy-tracker-integration-home-assistant/releases)
 [![HACS](https://img.shields.io/badge/HACS-custom%20repository-41BDF5.svg)](https://hacs.xyz)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.8%2B-41BDF5.svg)](https://www.home-assistant.io)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
@@ -12,7 +12,7 @@ every bridge, sensor and outlet shows up as a device in Home Assistant. Consumpt
 feed-in go straight into the Energy dashboard, including the history from before the setup.
 Outlets can be switched from automations, and the bridge offers its firmware updates.
 
-![The Energy dashboard with an OBI ENERGY TRACKER as the grid meter](https://raw.githubusercontent.com/OBI-Smart-Technologies/energy-tracker-integration-hacs/main/docs/images/energy.png)
+![The Energy dashboard with an OBI ENERGY TRACKER as the grid meter](https://raw.githubusercontent.com/OBI-Smart-Technologies/energy-tracker-integration-home-assistant/main/docs/images/energy.png)
 
 ## Contents
 
@@ -55,16 +55,16 @@ on their own. Devices you remove from the account are removed from Home Assistan
 
 ### HACS (recommended)
 
-[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=OBI-Smart-Technologies&repository=energy-tracker-integration-hacs&category=integration)
+[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=OBI-Smart-Technologies&repository=energy-tracker-integration-home-assistant&category=integration)
 
 Or by hand: **HACS → ⋮ → Custom repositories**, add
-`https://github.com/OBI-Smart-Technologies/energy-tracker-integration-hacs` with the type **Integration**, then
+`https://github.com/OBI-Smart-Technologies/energy-tracker-integration-home-assistant` with the type **Integration**, then
 download *OBI ENERGY TRACKER* and restart Home Assistant.
 
 ### Manual
 
 Download `obi_energy_tracker.zip` from the
-[latest release](https://github.com/OBI-Smart-Technologies/energy-tracker-integration-hacs/releases/latest) and
+[latest release](https://github.com/OBI-Smart-Technologies/energy-tracker-integration-home-assistant/releases/latest) and
 unpack it into `config/custom_components/obi_energy_tracker/`, then restart Home Assistant.
 
 Home Assistant installs the required
@@ -87,7 +87,7 @@ Or go to **Settings → Devices & services → Add integration → OBI ENERGY TR
 The setup asks for nothing else. The update interval is fixed, and each OBI account can be
 added once.
 
-![The integration page with a bridge, a sensor and an outlet](https://raw.githubusercontent.com/OBI-Smart-Technologies/energy-tracker-integration-hacs/main/docs/images/integration.png)
+![The integration page with a bridge, a sensor and an outlet](https://raw.githubusercontent.com/OBI-Smart-Technologies/energy-tracker-integration-home-assistant/main/docs/images/integration.png)
 
 ## Entities
 
@@ -104,7 +104,7 @@ Sensors and outlets are grouped under the bridge they connect through.
 | Signal Strength | Sensor, dBm, diagnostic | Radio signal strength, disabled by default |
 | Online Status | Binary sensor, diagnostic | Whether the device is connected to the bridge |
 
-![A sensor device page](https://raw.githubusercontent.com/OBI-Smart-Technologies/energy-tracker-integration-hacs/main/docs/images/sensor.png)
+![A sensor device page](https://raw.githubusercontent.com/OBI-Smart-Technologies/energy-tracker-integration-home-assistant/main/docs/images/sensor.png)
 
 ### Outlet
 
@@ -114,7 +114,7 @@ The outlet has the same entities as the sensor except the battery, plus:
 |---|---|---|
 | Outlet | Switch | Turns the outlet on and off |
 
-![An outlet device page](https://raw.githubusercontent.com/OBI-Smart-Technologies/energy-tracker-integration-hacs/main/docs/images/outlet.png)
+![An outlet device page](https://raw.githubusercontent.com/OBI-Smart-Technologies/energy-tracker-integration-home-assistant/main/docs/images/outlet.png)
 
 ### Bridge
 
@@ -247,7 +247,7 @@ automation:
 
 For more detail, enable debug logging on the integration page (**⋮ → Enable debug logging**),
 reproduce the problem and disable it again to download the log. Then open an
-[issue](https://github.com/OBI-Smart-Technologies/energy-tracker-integration-hacs/issues) and attach the
+[issue](https://github.com/OBI-Smart-Technologies/energy-tracker-integration-home-assistant/issues) and attach the
 diagnostics (**device page → Download diagnostics**). Tokens and device names are removed
 from the diagnostics.
 

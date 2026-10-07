@@ -1,5 +1,5 @@
 {
-  "name": "energy-tracker-integration-hacs",
+  "name": "energy-tracker-integration-home-assistant",
   "image": "mcr.microsoft.com/devcontainers/base:debian",
   "postCreateCommand": "scripts/setup",
   "forwardPorts": [8123],
